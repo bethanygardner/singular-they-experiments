@@ -1,32 +1,105 @@
 PennController.ResetPrefix(null) // Keep here
 DebugOff()
 
-
-Sequence("Consent",                                          //Consent form
+Sequence("intro", "consent", "catch_1", "catch_2",           //Consent form and catch questions
         "instructions_psa", "PSA",                           //PSA 
         "instructions_story", "Story1", "Story2",            //Story 1, Story 2
         "instructions_character", randomize("character"),    //Introduce character (random order)
         "instructions_math", randomize("math"),              //Math questions (random order)
         "instructions_memory", randomize("memory"),          //Memory questions (random order grouped by character)
         "instructions_production", randomize("production"),  //Production questions (random order)
-        "demographics", "validation")                        //Demographics, validation
+        "demographics",                                      //Demographics
+        "validation_1", SendResults(), "validation_2")       //Validation instructions, record results, give code  
+
+code = (()=>([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g,a=>(a^Math.random()*16>>a/4).toString(16)))()
+
+//Intro
+newTrial("intro",
+    newText("instructions", "This study involves reading PSA (public service announcement) \
+    texts on various topics, reading descriptions of different people, and then answering  \
+    questions about what you have read. <br><br>Please click the arrow to continue.")
+        .print()
+    ,
+    newButton("next", "Next")
+        .print()
+        .wait()
+)
 
 //Consent form
-newTrial("Consent",
-    newHtml("Consent", "consent.html")
+newTrial("consent",
+    newHtml("consent_form", "consent.html")
         .center()
         .print()
     ,
-    newButton("Agree", "I want to participate in this study")
+    newText("consent_question", "I have read this informed consent document and the material \
+    contained in it has been explained to me verbally. All my questions have been answered, \
+    and I freely and voluntarily choose to participate.")
+        .css("width", "600px")
+        .left()
+        .print()
+    ,
+    newScale("consent_answer", "I want to participate in this study.", 
+            "I do not wish to participate in this study.")
+        .radio()
+        .labelsPosition("right")
+        .vertical()
+        .css("width", "600px")
         .print()
         .wait()
+        .test.selected("I do not wish to participate in this study.")
+        .success(
+            clear()
+            ,
+            newText("leave", "You indicated that you did not want to participate in this study, so it will not begin.")
+                .print()
+            ,
+            SendResults()
+            ,
+            newButton().wait()
+        )
 ) 
+
+//Catch trial 1
+newTrial("catch_1",
+    newText("catch_text", "Add 2 to 4, and type the answer out in lower-case word form.")
+        .print()
+    ,
+    newTextInput("catch_answer", "")
+        .center()
+        .lines(0)
+        .size(100, 30)
+        .print()
+    ,
+    newButton("next", "Next")
+        .print()
+        .wait(getTextInput("catch_answer").test.text(/six/))
+)
+
+//Catch trial 2
+newTrial("catch_2",
+    newText("catch2_text", "Type the word that you hear in upper case.")
+        .print()
+    ,
+    newAudio("catch2_audio", "catch_word.mp3")
+        .center()
+        .print()
+        .wait()
+    ,
+    newTextInput("catch2_answer", "")
+        .center()
+        .lines(0)
+        .size(200, 30)
+        .print()
+    ,
+    newButton("next", "Next")
+        .print()
+        .wait(getTextInput("catch2_answer").test.text(/LANGUAGE/))
+)
 
 //Instructions: PSA 
 newTrial("instructions_psa",
-    newText("instructions", "This is a pilot version of a new study. Please complete it in \
-    in one setting, so we can see how long it takes. <br><br> In this study, you will read \
-    three different kinds of texts. Please read each one carefully. <br><brFirst, you'll see an informational article.")
+    newText("instructions", "In this study, you will read three different kinds of texts. \
+    Please read each one carefully. <br><brFirst, you'll see an informational article.")
         .print()
     ,
     newButton("next", "Next")
@@ -110,7 +183,7 @@ Template("stimuli_characters.csv", row =>
             .center()
             .print()
         ,
-        newTimer("wait", "3000")
+        newTimer("wait", "2000")
             .start()
             .wait()
         ,
@@ -175,8 +248,8 @@ Template("stimuli_characters.csv", row =>
         newText("job_prompt", row.memory_job)
         ,
         newDropDown("job_answers", "")
-            .add("engineer", "uber driver", "food service", "mechanic", "teacher", "accountant", 
-            "retail", "janitor", "IT", "nurse", "doctor", "salesperson")
+            .add("engineer", "Uber driver", "food service", "mechanic", "teacher", "accountant", 
+            "retail", "janitor", "IT", "nurse", "doctor", "sales")
             .before(getText("job_prompt"))
             .shuffle()
             .print()
@@ -202,9 +275,9 @@ Template("stimuli_characters.csv", row =>
         ,
         newButton("next", "Next")
             .print()
-            .wait(getDropDown("job_answers").test.selected(), 
-                  getDropDown("pet_answers").test.selected(), 
-                  getDropDown("pronoun_answers").test.selected()) 
+            .wait(getDropDown("job_answers").test.selected() 
+                .and(getDropDown("pet_answers").test.selected()) 
+                .and(getDropDown("pronoun_answers").test.selected())) 
     )
     .log("list", row.group)
     .log("condition", row.condition)
@@ -212,6 +285,7 @@ Template("stimuli_characters.csv", row =>
     .log("pronoun", row.pronoun)
     .log("job", row.job)
     .log("pet", row.pet)
+    .log("subj_code", code)
 )
 
 //Instructions: production
@@ -256,6 +330,7 @@ Template("stimuli_characters.csv", row =>
     .log("pronoun", row.pronoun)
     .log("job", row.job)
     .log("pet", row.pet)
+    .log("subj_code", code)
 )
 
 //Demographics
@@ -266,7 +341,7 @@ newTrial("demographics",
         .print()
     ,
     newText("age", "Age:")
-        .css("width", "75px")
+        .css("width", "150px")
         .left()
     ,
     newTextInput("enter_age", "")
@@ -276,7 +351,7 @@ newTrial("demographics",
         .log()
     ,
     newText("gender", "Gender:")
-        .css("width", "75px")
+        .css("width", "150px")
         .left()
     ,
     newTextInput("enter_gender", "")
@@ -302,22 +377,48 @@ newTrial("demographics",
         .print()
         .log()
     ,
+    newText("turkID", "MTurk ID:")
+        .css("width", "150px")
+        .left()
+    ,
+    newTextInput("enter_turkID", "")
+        .before(getText("turkID"))
+        .css("width", "300px")
+        .print()
+        .log()
+    ,
     newButton("next", "Next")
         .print()
-        .wait(getTextInput("enter_age").test.text(/^(?!\s*$).+/),
-              getTextInput("enter_gender").test.text(/^(?!\s*$).+/),
-              getScale("enter_english").test.selected())
+        .wait(getTextInput("enter_age").test.text(/^(?!\s*$).+/)
+            .and(getTextInput("enter_gender").test.text(/^(?!\s*$).+/))
+            .and(getTextInput("enter_turkID").test.text(/^(?!\s*$).+/))
+            .and(getScale("enter_english").test.selected()))
 )
 
 //Validation 
-//Instructions: PSA 
-newTrial("validation",
-    newText("validation", "Thank you for participating in this study! To receive credit, \
-    send an email to bethanyhgardner@gmail.com with the word PRONOUN_PILOT. <br> <br>\
-    This is a pilot version of a new study. If you saw any errors, please let us know!")
+
+newTrial("validation_1",
+    newText("validation", "Thank you for participating in this study! We are studying      \
+    how people learn facts about others. <br><br> If you have any questions or concerns,   \
+    please email the requester through MTurk. <br><br> To get credit, please enter \
+    this validation code in MTurk.")
+        .print() 
+    ,
+    newButton("next", "Get validation code")
+        .print()
+        .wait()
+)
+
+newTrial("validation_2",
+    newText("Your code is: ")
+        .print()
+    ,
+    newText(code)
+        .bold()
         .print()
     ,
     newButton("next", "Finish")
         .print()
         .wait()
 )
+code=undefined
