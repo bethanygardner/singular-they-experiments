@@ -1,7 +1,0 @@
-Trial_Type,Target_Pronoun,Target_Image,Target_Position,Distractor_Pronoun,Distractor_Image,Distractor_Position,IO_Image,IO_Position,DO_Image,TopLeft,BottomLeft,TopRight,BottomRight,Correct_Description
-critical,he/him,char1_preview.jpg,center at 35%,she/her,char2_preview.jpg,center at 65%,appleSmall.png,top,sib1A.png,sib1A.png,sib1B.png,sib2A.png,sib2B.png,his brother
-critical,he/him,char1_preview.jpg,center at 65%,she/her,char2_preview.jpg,center at 35%,appleSmall.png,top,sib1B.png,sib2A.png,sib2B.png,sib1B.png,sib1A.png,his sister
-critical,she/her,char2_preview.jpg,center at 35%,he/him,char1_preview.jpg,center at 65%,appleSmall.png,bottom,sib2B.png,sib2A.png,sib2B.png,sib1A.png,sib1B.png,her sister
-critical,she/her,char2_preview.jpg,center at 65%,he/him,char1_preview.jpg,center at 35%,appleSmall.png,bottom,sib2A.png,sib1A.png,sib1B.png,sib2B.png,sib2A.png,her brother
-critical,they/them,char3_preview.jpg,center at 35%,she/her,char2_preview.jpg,center at 65%,appleSmall.png,top,sib3A.png,sib3A.png,sib3B.png,sib2B.png,sib2A.png,their brother
-critical,they/them,char3_preview.jpg,center at 65%,she/her,char2_preview.jpg,center at 35%,appleSmall.png,top,sib3B.png,sib2B.png,sib2A.png,sib3B.png,sib3A.png,their sister
