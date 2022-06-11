@@ -1,6 +1,9 @@
 .workspace/*
-/Exp3/Images/*
+Exp3/Images/Unused/*
+Exp3/Images/Characters_500px/*
+Exp3/Images/Characters_1000px/*
 
+*.ini
 # History files
 .Rhistory
 .Rapp.history

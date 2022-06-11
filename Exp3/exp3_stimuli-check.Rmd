@@ -1,0 +1,808 @@
+---
+title: "Experiment 3 Stimuli"
+author: "Bethany Gardner"
+date: "06/10/2022"
+output: 
+  github_document:
+    toc: true
+    toc_depth: 3
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    df_print: kable
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+options(dplyr.summarise.inform = FALSE)
+library(magrittr)
+library(kableExtra)
+```
+
+# Introductions to characters
+
+```{r}
+d_char <- read.csv("exp3_stim_char.csv", 
+                   fileEncoding="UTF-8-BOM", stringsAsFactors=TRUE)
+str(d_char) 
+```
+
+## Stimuli file structure
+
+-   group = list assignment for PCIbex
+
+-   trial_id = unique code across all conditions/lists/experiment
+    sections
+
+-   condition = between-subjects conditions (Nametag x Introduction)
+
+-   character_set = 6 sets of characters
+
+-   target_pronoun = character's pronouns (calling these variables
+    "target" to match other stimuli lists)
+
+-   target_id = character code that can reconstruct set, image, name,
+    pronouns
+
+-   target_image = character image (HT1, HT2, HT3, ST1, ST2, ST3)
+
+-   target_name = character name (Brian, Dan, Emily, Jess, Alex, Sam)
+
+-   target_file = file name for character image (image_pronoun_name.png
+    or image_pronoun_name_nametag.png, according to condition)
+
+-   brother = file name for character's brother
+    (character-image_brother_character-name.png)
+
+-   sister = file name for character's sister
+    (character-image_sister_character-name.png)
+
+-   text1_name = text to display with character image ("This is [name]"
+
+-   text1_pronouns = text to display with character image ("." or ", who
+    uses [pronouns].", according to condition)
+
+-   text2_brother = text to display with brother image ("He has/she
+    has/they have a brother."
+
+-   text3_sister = text to display with sister image ("And he has/and
+    she has/and they have a sister.")
+
+## Conditions/lists
+
+Split into 4 conditions:
+
+1.  Both = +Nametag, +Introduction
+2.  Intro = -Nametag, +Introduction
+3.  Nametag = +Nametag, -Introduction
+4.  Neither = -Nametag, -Introduction
+
+```{r}
+summary(d_char$condition)
+```
+
+Counter-balanced with 6 lists of characters:
+
+```{r}
+d_char$character_set %>% as.factor() %>% summary()
+```
+
+6 sets of characters -\> 6 of each pronoun type, each of which appears
+1x in each of the 4 conditions.
+
+```{r}
+d_char %>% count(target_pronoun, target_id)
+```
+
+4 conditions x 6 character lists = 24 groups, each of which has 3 trials
+(1 he/him character, 1 she/her character, 1 they/them character).
+
+```{r}
+d_char %>% group_by(group) %>% summarise(n())
+```
+
+## Character image
+
+Check to make the image displayed matches the condition/list variables:
+
+```{r}
+d_char %<>% 
+  mutate(.after="target_file", target_path=str_c(
+      target_image, "_",
+      case_when(
+          target_pronoun=="he/him"    ~ "he",
+          target_pronoun=="she/her"   ~ "she",
+          target_pronoun=="they/them" ~ "they"),
+      "_", target_name,
+      case_when(
+          condition=="both"|condition=="nametag"  ~ "_nametag",
+          condition=="intro"|condition=="neither" ~ ""),
+      ".png")) %>%
+   mutate(.after="target_path", 
+      target_file_check=(target_file==target_path))
+
+summary(d_char$target_file_check)
+```
+
+## Character text
+
+Check that text displayed matches the condition/list variables:
+
+"This is [name]"
+
+```{r}
+d_char %<>% mutate(.after=14, text1_name_check=
+  str_detect(as.character(text1_name),      
+             str_to_sentence(target_name)))
+
+summary(d_char$text1_name_check)
+```
+
++Introduction conditions: ", who uses [pronouns]."
+
+-Introduction conditions: "."
+
+```{r}
+d_char %<>% mutate(.after="text1_pronouns", 
+      text1_pronouns_check=case_when(
+          (condition=="nametag" | condition=="neither") ~
+              text1_pronouns==".",
+          (condition=="both" | condition=="intro") ~ 
+              str_detect(as.character(text1_pronouns), 
+               as.character(target_pronoun))))
+
+summary(d_char$text1_pronouns_check)
+```
+
+## Sibling images
+
+Check that sibling images displayed match the character variables
+(image, name):
+
+```{r}
+d_char %<>% mutate(.after="brother", 
+      brother_path=str_c(
+          target_image, "_brother_", target_name, ".png")) %>%
+      mutate(.after="brother_path", 
+      brother_check=(brother==brother_path))
+
+summary(d_char$brother_check)
+```
+
+```{r}
+d_char %<>% mutate(.after="sister", 
+      sister_path=str_c(
+          target_image, "_sister_", target_name, ".png")) %>%
+      mutate(.after="sister_path", 
+      sister_check=(sister==sister_path))
+
+summary(d_char$sister_check)
+```
+
+## Sibling text
+
+Check that text displayed matches character variables (pronoun).
+
+"[Pronoun] has a brother."
+
+```{r}
+d_char$text2_brother %<>% as.character()
+
+d_char %<>% mutate(.after="text2_brother", text2_brother_check=
+    ((target_pronoun=="he/him" && 
+        str_detect(text2_brother, "He has")) |
+    (target_pronoun=="she/her" && 
+        str_detect(text2_brother, "She has")) |
+    (target_pronoun=="they/them" && 
+        str_detect(text2_brother, "They have"))) &&
+    str_detect(text2_brother, "a brother."))
+
+summary(d_char$text2_brother_check)
+```
+
+"And [pronoun] has a sister."
+
+```{r}
+d_char$text3_sister %<>% as.character()
+
+d_char %<>% mutate(.after="text3_sister", text3_sister_check=
+    ((target_pronoun=="he/him" && 
+        str_detect(text3_sister, "And he has")) |
+    (target_pronoun=="she/her" && 
+        str_detect(text3_sister, "And she has")) |
+    (target_pronoun=="they/them" && 
+        str_detect(text3_sister, "And they have"))) &&
+  str_detect(text3_sister, "a sister."))
+
+summary(d_char$text3_sister_check)
+```
+
+# Production prompt displays
+
+## Stimuli file structure
+
+```{r}
+d <- read.csv("exp3_stimuli_all.csv", stringsAsFactors=TRUE)
+
+str(d)
+```
+
+Experiment variables:
+
+-   group = list assignment for PCIbex
+
+-   trial_id = unique code across all conditions/lists/experiment
+    sections
+
+-   condition = between-subjects conditions (Nametag x Introduction)
+
+-   character_set = 6 sets of characters
+
+Target character (the one described) variables:
+
+-   target_pronoun = character's pronouns
+
+-   target_id = character code that can reconstruct set, image, name,
+    pronouns
+
+-   target_image = character image (HT1, HT2, HT3, ST1, ST2, ST3)
+
+-   target_name = character name (Brian, Dan, Emily, Jess, Alex, Sam)
+
+-   target_file = file name for character image (image_pronoun_name.png
+    or image_pronoun_name_nametag.png, according to condition)
+
+-   target_x = location (275=left, 525=right)
+
+Distractor character (pictured, but not described) variables:
+
+-   distractor_pronoun = character's pronouns
+
+-   distractor_id = character code that can reconstruct set, image,
+    name, pronouns
+
+-   distractor_image = character image (HT1, HT2, HT3, ST1, ST2, ST3)
+
+-   distractor_name = character name (Brian, Dan, Emily, Jess, Alex,
+    Sam)
+
+-   distractor_file = file name for character image
+    (image_pronoun_name.png or image_pronoun_name_nametag.png, according
+    to condition)
+
+-   distractor_x = location (275=left, 525=right)
+
+Object variables:
+
+-   object_x: object horizontal location (175=left, 725=right)
+
+-   object_y2, object_y3, object_y4: object vertical path. (starts at
+    center, 150 100 50 moves up, 250 300 350 moves down)
+
+Sibling variables:
+
+-   sibling_image: sibling that receives object
+
+-   top_left, top_right, bottom_left, bottom_right: all 4 sibling images
+    to display
+
+Correct answer:
+
+-   correct_description: [name] gave the [object] to [pronoun] [sibling]
+
+-   audio: audio file for example and practice trials
+
+## Conditions/lists
+
+Split into 4 conditions:
+
+1.  Both = +Nametag, +Introduction
+2.  Intro = -Nametag, +Introduction
+3.  Nametag = +Nametag, -Introduction
+4.  Neither = -Nametag, -Introduction
+
+```{r}
+summary(d$condition)
+```
+
+Counter-balanced with 6 lists of characters:
+
+```{r}
+d$character_set %>% as.factor() %>% summary()
+```
+
+6 sets of characters \* 3 pronouns = 18 character variations, each with
+a unique image-pronoun-name combination.
+
+```{r}
+d %>% select(target_id, target_pronoun, 
+             target_image, target_name) %>%
+  unique() %>% arrange(target_id)
+```
+
+4 conditions x 6 character lists = 24 groups, each of which has 3 trials
+(1 he/him character, 1 she/her character, 1 they/them character). The
+Nametag, but not the Introduction condition varies here, but need the
+items repeated to keep group assignment consistent in PCIbex.
+
+36 = 3 example + 3 practice + 30 test trials per group
+
+```{r}
+d %>% group_by(group) %>% summarise(n())
+```
+
+```{r}
+d %<>% mutate(.after="group", trial_type=case_when(
+  str_detect(trial_id, "example") ~ "example",
+  str_detect(trial_id, "practice") ~ "practice",
+  str_detect(trial_id, "test") ~ "test"))
+summary(as.factor(d$trial_type))
+```
+
+Each trial has a unique ID, to double-check that no trial info is lost.
+
+```{r}
+str(d$trial_id)
+864/36
+```
+
+## Characters
+
+### Pronouns
+
+Each list has 1 example, 1 practice, and 10 test trials for each pronoun
+type.
+
+```{r}
+d %>% count(group, target_pronoun, trial_type)
+```
+
+The distractor character pronouns are split evenly between the other two
+pronoun types.
+
+```{r}
+d %>% count(distractor_pronoun, target_pronoun)  
+```
+
+### Images
+
+6 character images.
+
+```{r}
+summary(d$target_image)
+summary(d$distractor_image)
+```
+
+Each list contains 3 images.
+
+```{r}
+d %>% count(character_set, target_image) 
+d %>% count(character_set, distractor_image) 
+```
+
+Each image appears 2x with he/she and 1x with they.
+
+```{r}
+d %>% count(target_image, target_pronoun) 
+d %>% count(distractor_image, distractor_pronoun) 
+```
+
+### Names
+
+6 names (2 masc, 2 fem, 2 androgynous).
+
+```{r}
+summary(d$target_name)
+summary(d$distractor_name)
+```
+
+Each list has 3 names (1 masc, 1 fem, 1 androgynous).
+
+```{r}
+d %>% count(character_set, target_name) 
+d %>% count(character_set, distractor_name) 
+```
+
+Masculine names appear 2x with he/him and 1x with they/them. Feminine
+names appear 2x with she/her and 1x with they/them. Androgynous names
+appear 1x with he/him, 1x with she/her, and 1x with they/them. [1x = (1
+practice + 1 example + 10 test) x 4 conditions]
+
+```{r}
+d %>% count(target_name, target_pronoun) 
+d %>% count(distractor_name, distractor_pronoun) 
+```
+
+## Siblings
+
+Image for sibling that receives object matches character.
+
+```{r}
+d %>% mutate(sibling_group=str_sub(sibling_image, 0, 11)) %>%
+  count(target_image, sibling_group) 
+```
+
+### Example & practice trials
+
+Odd numbers mean that example+practice trials aren't perfectly balanced,
+so less confusing to check test trials separately.
+
+Sibling that receives object is distributed evenly.
+
+```{r}
+d %>% filter(trial_type=="example"|trial_type=="practice") %>% 
+  mutate(sibling_group=str_sub(sibling_image, 0, 11)) %>%
+  group_by(sibling_group) %>%
+  summarise(n=n()) 
+```
+
+Target characters that appear on the left (1/3 of example, 2/3 of
+practice) have matching sibling images.
+
+```{r}
+d %>% filter(trial_type=="example"|trial_type=="practice") %>% 
+  filter(target_x==275) %>% 
+  mutate(sibling_group=str_sub(top_left, 0, 11)) %>%
+  count(target_image, sibling_group)
+
+d %>% filter(trial_type=="example"|trial_type=="practice") %>% 
+  filter(target_x==275) %>% 
+  mutate(sibling_group=str_sub(bottom_left, 0, 11)) %>%
+  count(target_image, sibling_group) 
+```
+
+Target characters that appear on the right (2/3 example, 1/3 of practice
+trials) have matching sibling images.
+
+```{r}
+d %>% filter(trial_type=="example"|trial_type=="practice") %>% 
+  filter(target_x==525) %>% 
+  mutate(sibling_group=str_sub(top_right, 0, 11)) %>%
+  count(target_image, sibling_group) 
+
+d %>% filter(trial_type=="example"|trial_type=="practice") %>% 
+  filter(target_x==525) %>% 
+  mutate(sibling_group=str_sub(bottom_right, 0, 11)) %>%
+  count(target_image, sibling_group) 
+```
+
+Distractor characters that appear on the left (2/3 example, 1/3 of
+practice trials) have matching sibling images.
+
+```{r}
+d %>% filter(trial_type=="example"|trial_type=="practice") %>% 
+  filter(distractor_x==275) %>% 
+  mutate(sibling_group=str_sub(top_left, 0, 11)) %>%
+  count(distractor_image, sibling_group) 
+
+d %>% filter(trial_type=="example"|trial_type=="practice") %>% 
+  filter(distractor_x==275) %>% 
+  mutate(sibling_group=str_sub(bottom_left, 0, 11)) %>%
+  count(distractor_image, sibling_group) 
+```
+
+Distractor characters that appear on the right (1/3 of example, 2/3 of
+practice trials) have matching sibling images.
+
+```{r}
+d %>% filter(trial_type=="example"|trial_type=="practice") %>% 
+  filter(distractor_x==525) %>% 
+  mutate(sibling_group=str_sub(top_right, 0, 11)) %>%
+  count(distractor_image, sibling_group) 
+
+d %>% filter(trial_type=="example"|trial_type=="practice") %>% 
+  filter(distractor_x==525) %>% 
+  mutate(sibling_group=str_sub(bottom_right, 0, 11)) %>%
+  count(distractor_image, sibling_group) 
+```
+
+### Test trials
+
+Sibling that receives object is distributed evenly.
+
+```{r}
+d %>% filter(trial_type=="test") %>%
+  group_by(sibling_image) %>%
+  summarise(n=n()) 
+```
+
+Target characters that appear on the left have matching sibling images,
+split as evenly as possible between brother and sister.
+
+```{r}
+d %>% filter(trial_type=="test") %>% 
+  filter(target_x==275) %>% 
+  mutate(sibling_group=str_sub(top_left, 0, 11)) %>%
+  count(target_image, sibling_group)
+
+d %>% filter(trial_type=="test") %>% 
+  filter(target_x==275) %>% 
+  mutate(sibling_group=str_sub(bottom_left, 0, 11)) %>%
+  count(target_image, sibling_group) 
+```
+
+Target characters that appear on the right have matching sibling images,
+split as evenly as possible between brother and sister.
+
+```{r}
+d %>% filter(trial_type=="test") %>% 
+  filter(target_x==525) %>% 
+  mutate(sibling_group=str_sub(top_right, 0, 11)) %>%
+  count(target_image, sibling_group) 
+
+d %>% filter(trial_type=="test") %>% 
+  filter(target_x==525) %>% 
+  mutate(sibling_group=str_sub(bottom_right, 0, 11)) %>%
+  count(target_image, sibling_group) 
+```
+
+Trials where distractor character is on left have matching sibling
+images.
+
+```{r}
+d %>% filter(trial_type=="test") %>% 
+  filter(distractor_x==275) %>% 
+  mutate(sibling_group=str_sub(top_left, 0, 11)) %>%
+  count(distractor_image, sibling_group)  
+
+d %>% filter(trial_type=="test") %>% 
+  filter(distractor_x==275) %>% 
+  mutate(sibling_group=str_sub(bottom_left, 0, 11)) %>%
+  count(distractor_image, sibling_group)  
+```
+
+Trials where distractor character is on right have matching sibling
+images.
+
+```{r}
+d %>% filter(trial_type=="test") %>%
+  filter(distractor_x==525) %>% 
+  mutate(sibling_group=str_sub(top_right, 0, 11)) %>%
+  count(distractor_image, sibling_group)  
+
+d %>% filter(trial_type=="test") %>% 
+  filter(distractor_x==525) %>% 
+  mutate(sibling_group=str_sub(bottom_right, 0, 11)) %>%
+  count(distractor_image, sibling_group)  
+```
+
+## Objects
+
+36 objects, 1 for each trial frame (3 + 3 + 30).
+
+```{r}
+d %>% group_by(trial_type, object_image) %>% summarise(n())
+```
+
+Check that object starts on same side as target character.
+
+```{r}
+d %<>% mutate(.after="object_x", object_x_check=case_when(
+  target_x==275 ~ object_x==175,
+  target_x==525 ~ object_x==725))
+summary(d$object_x_check)
+```
+
+Check that object moves up/down to the correct sibling.
+
+```{r}
+d %<>% mutate(.after="sibling_image", sibling_pos=case_when(
+    sibling_image==top_left ~ "top left",
+    sibling_image==top_right ~ "top right",
+    sibling_image==bottom_left ~ "bottom left",
+    sibling_image==bottom_right ~ "bottom right")) 
+```
+
+```{r}
+d %<>% mutate(.after="object_y4", object_y_check=case_when(
+  str_detect(sibling_pos, "top") ~ 
+    (object_y2==150 & object_y3==100 & object_y4==50),
+  str_detect(sibling_pos, "bottom") ~
+    (object_y2==250 & object_y3==300 & object_y4==350)))
+
+summary(d$object_y_check)
+```
+
+## Counterbalance positioning
+
+### Target character
+
+Target character position (left or right) counterbalanced across 3
+example, 3 test, and 30 practice trials.
+
+```{r}
+d %>% count(trial_type, target_x)  
+```
+
+```{r}
+d %>% count(character_set, target_x)  
+```
+
+### Sibling & object position
+
+Sibling/object counterbalanced. (Just checking test trials b/c can't
+balance 3 test and 3 practice across 4 positions.)
+
+```{r}
+d %>% filter(trial_type=="test") %>%
+  group_by(character_set) %>%
+  count(sibling_pos)  
+```
+
+## Correct answer
+
+Equal number of his/her/their brother/sister correct answers per list.
+
+```{r}
+d %<>% mutate(.after="sibling_image", sibling_type=case_when(
+  str_detect(sibling_image, "brother") ~ "brother",
+  str_detect(sibling_image, "sister") ~ "sister"))
+
+d %>% group_by(character_set) %>% 
+  count(target_pronoun, sibling_type)  
+```
+
+Double check correct description ("[Name] gave the [object] to
+[pronoun][sibling].")
+
+```{r}
+d %<>% mutate(.after="correct_description", 
+  correct_description_check=
+  str_c(str_to_sentence(target_name), 
+        " gave the ",
+        str_sub(object_image, end=-5),
+        " to ",
+        case_when(
+          target_pronoun=="he/him" ~ "his ",
+          target_pronoun=="she/her" ~ "her ",
+          target_pronoun=="they/them" ~ "their "),
+        case_when(
+          str_detect(sibling_image, "brother") ~ "brother.",
+          str_detect(sibling_image, "sister") ~ "sister."))) %>%
+  mutate(.after="correct_description_check",
+         correct_description_compare=
+        (correct_description==correct_description_check))
+summary(d$correct_description_compare)
+```
+
+## Correct file names
+
+### Target
+
+```{r}
+d %<>% mutate(.after="target_file", target_path=
+          str_c(target_image, "_",
+          case_when(
+              target_pronoun=="he/him"    ~ "he",
+              target_pronoun=="she/her"   ~ "she",
+              target_pronoun=="they/them" ~ "they"),
+          "_", target_name,
+          case_when(
+              condition=="both" | condition=="nametag"  ~ "_nametag",
+              condition=="intro" | condition=="neither" ~ ""),
+          ".png")) %>%
+       mutate(.after="target_path",
+              target_path_check=(target_file==target_path))
+
+summary(d$target_path_check)
+```
+
+### Distractor
+
+```{r}
+d %<>% mutate(.after="distractor_file", distractor_path=
+          str_c(distractor_image, "_",
+          case_when(
+              distractor_pronoun=="he/him" ~ "he",
+              distractor_pronoun=="she/her" ~ "she",
+              distractor_pronoun=="they/them" ~ "they"),
+          "_", distractor_name,
+          case_when(
+              condition=="both"|condition=="nametag" ~ "_nametag",
+              condition=="intro"|condition=="neither" ~ ""),
+          ".png")) %>%
+  mutate(.after="distractor_path", 
+         distractor_path_check=(distractor_file==distractor_path))
+
+summary(d$distractor_path_check)
+```
+
+### Sibling
+
+```{r}
+d %<>% mutate(.after="sibling_image", sibling_path=str_c(
+            target_image, "_", sibling_type, "_", 
+            target_name, ".png")) %>%
+       mutate(.after="sibling_path", sibling_path_check=
+            (sibling_image==sibling_path))
+ 
+summary(d$sibling_path_check)
+```
+
+### Audio
+
+```{r}
+d$audio %<>% as.factor() %>% na_if("")
+```
+
+144 example and practice trials have audio; 720 test trials don't.
+```{r}
+d %<>% mutate(.after="audio", audio_path=case_when(
+       trial_type=="example" | trial_type=="practice" ~ 
+         (str_c(trial_type, "_", 
+                target_name, "-",
+                str_sub(object_image, end=-5), "-",
+                case_when(
+                    target_pronoun=="he/him" ~ "his",
+                    target_pronoun=="she/her" ~ "her",
+                    target_pronoun=="they/them" ~ "their"),
+                "-", sibling_type, ".mp3")),
+       trial_type=="test" ~ ""))
+d$audio_path %<>% na_if("")
+
+d %<>% mutate(.after="audio_path", audio_path_check=
+       (audio==audio_path))
+summary(d$audio_path_check)
+
+```
+
+# List of stimuli
+
+## Images
+
+Full list of image files called in the stimuli list:
+
+```{r}
+image_list <- d %>% 
+  select(target_file, distractor_file, object_image,
+    sibling_image, top_left, top_right, bottom_left, bottom_right) %>%
+  pivot_longer(cols=everything(), 
+               names_to="temp", 
+               values_to="file_name") 
+
+image_list2 <- d_char %>% 
+  select(target_file, brother, sister) %>%
+  pivot_longer(cols=everything(), 
+               names_to="temp", 
+               values_to="file_name") 
+
+image_list %<>% bind_rows(image_list2) %>%
+  arrange(file_name) %>%
+  select(-temp) %>%
+  unique() 
+  
+```
+
+Check to make sure they're all there:
+
+```{r}
+files <- list.files("Images/Characters_300px/", pattern="*.png") 
+files %<>% append(list.files("Images/Objects_300px/", pattern="*.png"))
+
+image_list %<>% mutate(exist=file_name %in% files) 
+
+image_list  
+```
+
+## Audio
+
+List of audio files for example and practice trials.
+
+```{r}
+audio_list <- d %>% select(audio) %>% 
+  drop_na() %>% unique()
+```
+
+Check to make sure they're all there:
+
+```{r}
+recordings <- list.files("Audio/", pattern="*.mp3") 
+
+audio_list %<>% mutate(exist=audio %in% recordings) 
+
+audio_list  
+```
